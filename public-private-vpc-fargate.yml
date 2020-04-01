@@ -244,6 +244,7 @@ Resources:
       RouteTableIds:
         - !Ref "PrivateRouteTableOne"
         - !Ref "PrivateRouteTableTwo"
+      VpcEndpointType: "Interface"
       ServiceName:
         !Join ["", ["com.amazonaws.", { "Ref": "AWS::Region" }, ".sns"]]
       VpcId: !Ref "VPC"
