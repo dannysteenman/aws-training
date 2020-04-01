@@ -108,7 +108,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
       - Key: Name
-        Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+        Value: !Sub ${AWS::StackName} Public Subnet (AZ1)
   PublicSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
@@ -121,7 +121,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
       - Key: Name
-        Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+        Value: !Sub ${AWS::StackName} Public Subnet (AZ2)
 
   # Two private subnets where containers will only have private
   # IP addresses, and will only be reachable by other members of the
@@ -137,7 +137,7 @@ Resources:
       CidrBlock: !FindInMap ["SubnetConfig", "PrivateOne", "CIDR"]
       Tags:
       - Key: Name
-        Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+        Value: !Sub ${AWS::StackName} Private Subnet (AZ1)
   PrivateSubnetTwo:
     Type: AWS::EC2::Subnet
     Properties:
@@ -149,7 +149,7 @@ Resources:
       CidrBlock: !FindInMap ["SubnetConfig", "PrivateTwo", "CIDR"]
       Tags:
       - Key: Name
-        Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+        Value: !Sub ${AWS::StackName} Private Subnet (AZ2)
 
   # Setup networking resources for the public subnets. Containers
   # in the public subnets have public IP addresses and the routing table
