@@ -203,6 +203,24 @@ Resources:
       GroupDescription: "Security group with no ingress rule"
       VpcId: !Ref VPC
 
+  SNSEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: "*"
+            Principal: "*"
+            Resource: "*"
+      VpcEndpointType: "Interface"
+      ServiceName:
+        !Join ["", ["com.amazonaws.", { "Ref": "AWS::Region" }, ".sns"]]
+      VpcId: !Ref "VPC"
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
 Outputs:
   VPC:
     Description: A reference to the created VPC
@@ -234,4 +252,4 @@ Outputs:
 
   NoIngressSecurityGroup:
     Description: Security group with no ingress rule
-    Value: !Ref NoIngressSecurityGroup  
+    Value: !Ref NoIngressSecurityGroup

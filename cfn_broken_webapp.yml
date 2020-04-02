@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Execute this template, put in a random string for the S3 bucket name,
+  and then browse to the OutputURL. There should be a webapp showing a quiz about
+  AWS services. Find out what's wrong.
+Parameters:
+  S3Bucket:
+    Type: String
+    Description: Enter a random string
+Mappings:
+  AWSRegionToAMI:
+    ap-south-1:
+      AMI: ami-a2d29fcd
+    eu-west-2:
+      AMI: ami-6d061a09
+    eu-west-1:
+      AMI: ami-0a0cac73
+    ap-northeast-2:
+      AMI: ami-bc8723d2
+    ap-northeast-1:
+      AMI: ami-9d07a8fb
+    sa-east-1:
+      AMI: ami-a27902ce
+    ca-central-1:
+      AMI: ami-3a3f875e
+    ap-southeast-1:
+      AMI: ami-60783403
+    ap-southeast-2:
+      AMI: ami-ab6b85c9
+    eu-central-1:
+      AMI: ami-4d890d22
+    us-east-1:
+      AMI: ami-c555e0bf
+    us-east-2:
+      AMI: ami-a91b34cc
+    us-west-1:
+      AMI: ami-99023df9
+    us-west-2:
+      AMI: ami-d4d913ac
+Resources:
+  vpc4146d226:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.200.0.0/16
+      InstanceTenancy: default
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'false'
+  subnet759a0d3c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.200.10.0/24
+      VpcId: !Ref 'vpc4146d226'
+      Tags:
+        - Key: Name
+          Value: Public Subnet 1
+  igw76f4dd12:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Lab Gateway
+  acl3bd3f05c:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref 'vpc4146d226'
+  rtbb8ed1cde:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'vpc4146d226'
+      Tags:
+        - Key: Name
+          Value: Public Route Table
+  rtb74e51412:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'vpc4146d226'
+  WebInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: tableAWSServices
+    Properties:
+      DisableApiTermination: 'false'
+      InstanceInitiatedShutdownBehavior: stop
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      ImageId: !FindInMap
+        - AWSRegionToAMI
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: t2.micro
+      Monitoring: 'false'
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "#!/bin/bash\n"
+            - "\nyum remove -y httpd php"
+            - "\nyum install -y httpd24 php56 aws-cfn-bootstrap"
+            - "\nwget https://us-west-2-aws-training.s3.amazonaws.com/awsu-ilt/AWS-100-ARC/v5.2/lab-1-webapp/scripts/lab1src.zip"
+            - "\nunzip lab1src.zip -d /tmp/"
+            - "\nmv /tmp/lab1src/*.php /var/www/html/"
+            - "\nwget https://github.com/aws/aws-sdk-php/releases/download/3.15.9/aws.zip"
+            - "\nunzip aws -d /var/www/html"
+            - "\nAZ=`curl --silent http://169.254.169.254/latest/meta-data/placement/availability-zone/`"
+            - "\nREGION=${AZ::-1}"
+            - "\nBUCKET=`aws s3api list-buckets --query \"Buckets[?starts_with(Name,\
+              \ 'webapp-')].Name | [0]\" --output text`"
+            - "\naws s3 cp /tmp/lab1src/jquery/ s3://$BUCKET/jquery/ --recursive --acl\
+              \ public-read --region $REGION"
+            - "\naws s3 cp /tmp/lab1src/images/ s3://$BUCKET/images/ --recursive --acl\
+              \ public-read --region $REGION"
+            - "\naws s3 ls s3://$BUCKET/ --region $REGION --recursive"
+            - "\nsed -i \"2s/%region%/$REGION/g\" /var/www/html/*.php"
+            - "\nsed -i \"3s/%bucket%/$BUCKET/g\" /var/www/html/*.php"
+            - "\naws dynamodb batch-write-item --request-items file:///tmp/lab1src/scripts/services1.json\
+              \ --region $REGION"
+            - "\naws dynamodb batch-write-item --request-items file:///tmp/lab1src/scripts/services2.json\
+              \ --region $REGION"
+            - "\naws dynamodb batch-write-item --request-items file:///tmp/lab1src/scripts/services3.json\
+              \ --region $REGION"
+            - "\nchkconfig httpd on"
+            - "\nservice httpd start"
+            - "\n"
+      Tags:
+        - Key: Name
+          Value: WebServer
+      NetworkInterfaces:
+        - DeleteOnTermination: 'true'
+          Description: Primary network interface
+          DeviceIndex: 0
+          SubnetId: !Ref 'subnet759a0d3c'
+          PrivateIpAddresses:
+            - PrivateIpAddress: 10.200.10.113
+              Primary: 'true'
+          GroupSet:
+            - !Ref 'sgWebServer'
+          AssociatePublicIpAddress: 'true'
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'EC2Role'
+  tableAWSServices:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AWS-Services
+      AttributeDefinitions:
+        - AttributeName: Category
+          AttributeType: S
+        - AttributeName: Name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Category
+          KeyType: HASH
+        - AttributeName: Name
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+  s3webappstuff:
+    Type: AWS::S3::Bucket
+    DependsOn: tableAWSServices
+    Properties:
+      AccessControl: Private
+      BucketName: !Join
+        - ''
+        - - webapp-
+          - !Ref 'S3Bucket'
+      VersioningConfiguration:
+        Status: Suspended
+  sgWebServer:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: WebServer Security Group
+      VpcId: !Ref 'vpc4146d226'
+  acl1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: '0.0.0.0/0'
+      Egress: 'true'
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: '100'
+      NetworkAclId: !Ref 'acl3bd3f05c'
+  acl2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: '0.0.0.0/0'
+      Protocol: '-1'
+      RuleAction: allow
+      RuleNumber: '100'
+      NetworkAclId: !Ref 'acl3bd3f05c'
+  subnetacl1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref 'acl3bd3f05c'
+      SubnetId: !Ref 'subnet759a0d3c'
+  gw1:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'vpc4146d226'
+      InternetGatewayId: !Ref 'igw76f4dd12'
+  route1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: '0.0.0.0/0'
+      RouteTableId: !Ref 'rtbb8ed1cde'
+      GatewayId: !Ref 'igw76f4dd12'
+    DependsOn: gw1
+  ingress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'sgWebServer'
+      IpProtocol: tcp
+      FromPort: '22'
+      ToPort: '22'
+      CidrIp: '0.0.0.0/0'
+  egress1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref 'sgWebServer'
+      IpProtocol: '-1'
+      CidrIp: '0.0.0.0/0'
+Outputs:
+  OutputURL:
+    Value: !Join
+      - ''
+      - - http://
+        - !GetAtt 'WebInstance.PublicDnsName'
+    Description: URL of Webapp

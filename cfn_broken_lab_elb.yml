@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Make an EC2 keypair and then launch this template. Creates two instances
+  behind a broken ELB. Browse to the ELB and verify that it doesn't work. Now find
+  the bug(s) and fix it/them
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: AWS::EC2::KeyPair::KeyName
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: 10.0.0.0/16
+    Public:
+      CIDR: 10.0.1.0/24
+  AWSRegionToAMI:
+    ap-south-1:
+      AMI: ami-a2d29fcd
+    eu-west-2:
+      AMI: ami-6d061a09
+    eu-west-1:
+      AMI: ami-0a0cac73
+    ap-northeast-2:
+      AMI: ami-bc8723d2
+    ap-northeast-1:
+      AMI: ami-9d07a8fb
+    sa-east-1:
+      AMI: ami-a27902ce
+    ca-central-1:
+      AMI: ami-3a3f875e
+    ap-southeast-1:
+      AMI: ami-60783403
+    ap-southeast-2:
+      AMI: ami-ab6b85c9
+    eu-central-1:
+      AMI: ami-4d890d22
+    us-east-1:
+      AMI: ami-c555e0bf
+    us-east-2:
+      AMI: ami-a91b34cc
+    us-west-1:
+      AMI: ami-99023df9
+    us-west-2:
+      AMI: ami-d4d913ac
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      CidrBlock: !FindInMap
+        - SubnetConfig
+        - VPC
+        - CIDR
+      Tags:
+        - Key: Name
+          Value: TTT Delivery Workshop
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap
+        - SubnetConfig
+        - Public
+        - CIDR
+      AvailabilityZone: !Select
+        - '0'
+        - !GetAZs ''
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref 'InternetGateway'
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref 'PublicRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnet'
+      RouteTableId: !Ref 'PublicRouteTable'
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SSH Access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref 'VPC'
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTP Access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref 'VPC'
+  WebServer01:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - AWSRegionToAMI
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: t2.micro
+      KeyName: !Ref 'KeyName'
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'True'
+          DeleteOnTermination: 'True'
+          SubnetId: !Ref 'PublicSubnet'
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref 'WebSecurityGroup'
+            - !Ref 'SSHSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: 'Web Server #1'
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "#!/bin/bash -x\n"
+            - "exec &> /home/ec2-user/userdata.log\n"
+            - "yum install -y httpd\n"
+            - "chkconfig httpd on\n"
+            - "wget https://us-west-2-tcprod.s3.amazonaws.com/courses/ILT-TF-100-SYSOPS/v3.2.0/lab-2-ec2-linux/scripts/dashboard-app.zip\n"
+            - "unzip dashboard-app.zip -d /var/www/html/\n"
+            - "service httpd start\n"
+  WebServer02:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - AWSRegionToAMI
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: t2.micro
+      KeyName: !Ref 'KeyName'
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'True'
+          DeleteOnTermination: 'True'
+          SubnetId: !Ref 'PublicSubnet'
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref 'WebSecurityGroup'
+            - !Ref 'SSHSecurityGroup'
+      Tags:
+        - Key: Name
+          Value: 'Web Server #2'
+      UserData: !Base64
+        Fn::Join:
+          - ''
+          - - "#!/bin/bash -x\n"
+            - "exec &> /home/ec2-user/userdata.log\n"
+            - "yum install -y httpd\n"
+            - "chkconfig httpd on\n"
+            - "wget https://us-west-2-tcprod.s3.amazonaws.com/courses/ILT-TF-100-SYSOPS/v3.2.0/lab-2-ec2-linux/scripts/dashboard-app.zip\n"
+            - "unzip dashboard-app.zip -d /var/www/html/\n"
+            - "service httpd start\n"
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      LoadBalancerName: ttt-elb
+      Instances:
+        - !Ref 'WebServer01'
+        - !Ref 'WebServer02'
+      Subnets:
+        - !Ref 'PublicSubnet'
+      Listeners:
+        - LoadBalancerPort: '8000'
+          InstancePort: '80'
+          Protocol: HTTP
+      HealthCheck:
+        Target: !Join
+          - ''
+          - - 'HTTP:'
+            - '80'
+            - /healthcheck.html
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+      SecurityGroups:
+        - !Ref 'WebSecurityGroup'
+    DependsOn: GatewayToInternet
