@@ -1,0 +1,28 @@
+Instructions:
+
+In your own AWS account, create an EC2 ssh key and save it somewhere.
+Then do the following things. Try to fix the problems as though a student had created them manually while doing a lab (i.e. don’t read the CloudFormation template).
+
+1) Launch cfn_broken_lab_ssh.template, using your SSH key.
+This creates four EC2 instances. You should be able to SSH into three
+of them, and the other one should be running a web app. None of the four
+instances is working.
+Why not? Can you fix them in the console?
+
+2) Launch cfn_broken_elb.template, using your SSH key.
+This creates an ELB with a couple of EC2 instances running a web app,
+but if you browse to the ELB, it doesn't work. Why not?
+How can you fix it in the console?
+
+3) Launch cfn_broken_webapp.template, and type a random string for the
+S3 bucket name. This creates a webapp on a single EC2 instance.
+The EC2 instance stores some data in a DynamoDB table called AWS-Services,
+and stores static files in an S3 bucket called webapp-<yourS3name>.
+Browsing to the EC2 instance on port 80 doesn't work. Why not?
+How can you fix it in the console?
+
+4) Delete the CloudFormation stacks. One of the stacks will fail to delete.
+Why? How can you fix it in the console?
+
+5) Bonus point for fixing the CloudFormation templates as well as
+the running stacks ;-)

@@ -105,6 +105,10 @@ Resources:
           FromPort: '80'
           ToPort: '80'
           CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
       VpcId: !Ref 'VPC'
   BrokenInstance01:
     Type: AWS::EC2::Instance
@@ -116,7 +120,7 @@ Resources:
       InstanceType: t2.micro
       KeyName: !Ref 'KeyName'
       NetworkInterfaces:
-        - AssociatePublicIpAddress: 'False'
+        - AssociatePublicIpAddress: 'True'
           DeleteOnTermination: 'True'
           SubnetId: !Ref 'PublicSubnet'
           DeviceIndex: '0'
@@ -146,7 +150,7 @@ Resources:
           SubnetId: !Ref 'PublicSubnet'
           DeviceIndex: '0'
           GroupSet:
-            - !Ref 'WebSecurityGroup'
+            - !Ref 'SSHSecurityGroup'
       Tags:
         - Key: Name
           Value: 'Broken SSH Instance #02'
@@ -180,8 +184,6 @@ Resources:
           - ''
           - - "#!/bin/bash -x\n"
             - "exec &> /home/ec2-user/userdata.log\n"
-            - "service sshd stop\n"
-            - "chkconfig sshd off\n"
             - "\n"
   BrokenInstance04:
     Type: AWS::EC2::Instance
@@ -209,6 +211,4 @@ Resources:
             - "exec &> /home/ec2-user/userdata.log\n"
             - "yum install -y httpd\n"
             - "chkconfig httpd on\n"
-            - "curl http://public-sst.s3.amazonaws.com/training/rampup/html.tgz |\
-              \ tar -xz -C /var/www/\n"
             - "\n"

@@ -135,7 +135,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -225,8 +225,8 @@ Resources:
     Properties:
       GroupId: !Ref 'sgWebServer'
       IpProtocol: tcp
-      FromPort: '22'
-      ToPort: '22'
+      FromPort: '80'
+      ToPort: '80'
       CidrIp: '0.0.0.0/0'
   egress1:
     Type: AWS::EC2::SecurityGroupEgress

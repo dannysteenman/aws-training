@@ -178,15 +178,11 @@ Resources:
       Subnets:
         - !Ref 'PublicSubnet'
       Listeners:
-        - LoadBalancerPort: '8000'
+        - LoadBalancerPort: '80'
           InstancePort: '80'
           Protocol: HTTP
       HealthCheck:
-        Target: !Join
-          - ''
-          - - 'HTTP:'
-            - '80'
-            - /healthcheck.html
+        Target: 'TCP:80'
         HealthyThreshold: '3'
         UnhealthyThreshold: '5'
         Interval: '30'
